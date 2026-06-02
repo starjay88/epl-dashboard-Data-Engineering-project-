@@ -41,9 +41,17 @@ st.markdown("---")
 st.header("🤖 AI 매치 승패 예측기")
 st.write("380경기의 과거 데이터를 바탕으로 머신러닝(Random Forest)이 가상 매치의 승률을 예측합니다.")
 
+
 # AI 모델을 학습시키는 함수 (캐시를 사용해 한 번만 학습시킵니다)
 @st.cache_resource
 def train_model(data):
+    # 0. [에러 해결!] Result(승무패) 정답지 컬럼 만들기
+    # 원본 데이터에 Result 컬럼이 없다면, 골 수를 비교해서 우리가 직접 만들어줍니다!
+    if 'Result' not in data.columns:
+        data.loc[data['Home_Goals'] > data['Away_Goals'], 'Result'] = 'H'
+        data.loc[data['Home_Goals'] == data['Away_Goals'], 'Result'] = 'D'
+        data.loc[data['Home_Goals'] < data['Away_Goals'], 'Result'] = 'A'
+
     # 1. AI가 이해할 수 있게 팀 이름을 숫자(암호)로 바꿉니다.
     le = LabelEncoder()
     # 모든 팀 이름을 모아서 고유한 숫자를 부여합니다.
@@ -55,7 +63,7 @@ def train_model(data):
     X['Home_Team_Code'] = le.transform(data['Home_Team'])
     X['Away_Team_Code'] = le.transform(data['Away_Team'])
     
-    # 정답지(Result) 설정 (H: 홈승, D: 무승부, A: 원정승)
+    # 정답지(Result) 설정 (이제 위에서 만들었기 때문에 에러가 나지 않습니다!)
     y = data['Result']
     
     # 2. 랜덤 포레스트(Random Forest) AI 모델 학습시키기
