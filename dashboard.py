@@ -33,7 +33,7 @@ st.subheader("🔥 팀별 홈 경기 득점력 분석")
 home_goals = df.groupby('Home_Team')['Home_Goals'].sum().sort_values(ascending=False)
 st.bar_chart(home_goals) # 막대 그래프로 그려줍니다.
 
------------AI 예측 머신러닝-----------------------------------------------------------
+#-----------AI 예측 머신러닝-----------------------------------------------------------
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 
