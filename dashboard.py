@@ -10,12 +10,14 @@ from sklearn.preprocessing import LabelEncoder
 st.set_page_config(page_title="EPL Data Dashboard", layout="wide")
 
 def set_background():
-    # 웅장한 올드 트래포드(또는 EPL 구장) 느낌의 배경화면 주입
+    # 구장 이미지로 배경 설정 (Unsplash에서 무료로 제공하는 고화질 이미지 사용)
     image_url = "https://images.unsplash.com/photo-1489944440615-453fc2b6a9a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80"
+    
+    # rgba(0,0,0) -> rgba(255,255,255)로 변경하여 밝은 톤(0.6 농도)으로 맞춤
     page_bg_img = f"""
     <style>
     .stApp {{
-        background-image: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), url("{image_url}");
+        background-image: linear-gradient(rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.6)), url("{image_url}");
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
