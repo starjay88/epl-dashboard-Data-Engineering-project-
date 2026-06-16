@@ -10,7 +10,7 @@ CLOUD_DB_URL = os.environ.get("SUPABASE_DB_URL")
 
 # 헤더(출입증)와 파라미터(질문: 39번 프리미어리그, 2024년 시작 시즌) 
 headers = {'x-apisports-key': API_KEY}
-params = {'league': '39', 'season': '2024'}
+params = {'league': '39', 'season': '2025'}
 
 print("🌐 API 서버에서 24/25 시즌 데이터를 가져오는 중...")
 response = requests.get(url, headers=headers, params=params)
