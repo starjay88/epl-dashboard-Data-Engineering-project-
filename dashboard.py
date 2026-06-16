@@ -1,113 +1,109 @@
 import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine
-
-# 1. 클라우드에서 데이터 가져오기 (1시간마다 캐시를 지우고 최신 데이터로 새로고침!)
-@st.cache_data(ttl=3600)
-def load_data():
-    # [보안 적용] 스트림릿 전용 금고에서 안전하게 DB 주소를 읽어옵니다.
-    CLOUD_DB_URL = st.secrets["SUPABASE_DB_URL"]
-    
-    engine = create_engine(CLOUD_DB_URL)
-    # main.py에서 저장한 테이블 이름(epl_matches)으로 맞춰서 가져옵니다.
-    query = "SELECT * FROM epl_matches"
-    df = pd.read_sql(query, engine)
-    
-    return df
-
-# --- 여기서부터 화면 그리기 ---
-
-st.title("⚽ 2024-25 프리미어리그 대시보드")
-st.write("클라우드 데이터베이스(Supabase)와 실시간으로 연동된 화면입니다.")
-
-# 로딩 스피너 보여주기
-with st.spinner('클라우드 DB에서 최신 데이터를 불러오는 중...'):
-    df = load_data()
-
-# 1번 섹션: 전체 데이터 표 보여주기
-st.subheader("🗄️ 클라우드 원본 데이터")
-st.dataframe(df) # 엑셀처럼 예쁜 표로 그려줍니다.
-
-# 2번 섹션: 간단한 데이터 시각화 (홈팀 기준 총 득점 랭킹)
-st.subheader("🔥 팀별 홈 경기 득점력 분석")
-# 판다스를 이용해 팀별 홈 득점을 합산하고 순서대로 정렬합니다.
-home_goals = df.groupby('Home_Team')['Home_Goals'].sum().sort_values(ascending=False)
-st.bar_chart(home_goals) # 막대 그래프로 그려줍니다.
-
-#-----------AI 예측 머신러닝-----------------------------------------------------------
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 
-st.markdown("---")
-st.header("🤖 AI 매치 승패 예측기")
-st.write("380경기의 과거 데이터를 바탕으로 머신러닝(Random Forest)이 가상 매치의 승률을 예측합니다.")
+# 1. 화면 설정 (가장 먼저 와야 함): 화면을 넓게 쓰고 제목 지정
+st.set_page_config(page_title="EPL Data Dashboard", layout="wide")
 
-# AI 모델을 학습시키는 함수 (캐시를 사용해 한 번만 학습시킵니다)
+# 2. 클라우드에서 데이터 가져오기
+@st.cache_data(ttl=3600)
+def load_data():
+    CLOUD_DB_URL = st.secrets["SUPABASE_DB_URL"]
+    engine = create_engine(CLOUD_DB_URL)
+    query = "SELECT * FROM epl_matches"
+    df = pd.read_sql(query, engine)
+    return df
+
+# 데이터 로딩
+with st.spinner('클라우드 DB에서 7년 치 데이터를 불러오는 중...'):
+    df = load_data()
+
+# ==========================================
+#  사이드바 (화면 왼쪽 서랍) 설정
+# ==========================================
+st.sidebar.title("⚙️ 설정 및 예측")
+
+# [기능 1] 연도(시즌) 선택 필터
+st.sidebar.subheader("📅 시즌 선택")
+# DB에 있는 시즌 목록을 중복 없이 가져와서 최신순(내림차순) 정렬
+season_list = sorted(df['Season'].unique(), reverse=True)
+selected_season = st.sidebar.selectbox("데이터를 조회할 시즌을 선택하세요", season_list)
+
+# 사용자가 선택한 시즌의 데이터만 잘라내기
+filtered_df = df[df['Season'] == selected_season]
+
+
+# ==========================================
+#  메인 화면 설정
+# ==========================================
+st.title(f"⚽ {selected_season} 시즌 프리미어리그 대시보드")
+st.write("클라우드 데이터베이스(Supabase)와 연동된 동적 데이터 파이프라인입니다.")
+
+# 화면을 두 개의 탭으로 분리하여 깔끔하게 정리
+tab1, tab2 = st.tabs(["🗄️ 원본 데이터 보드", "🔥 팀별 득점력 분석"])
+
+with tab1:
+    st.subheader(f"{selected_season} 시즌 전체 경기 결과")
+    st.dataframe(filtered_df, use_container_width=True) # 화면 너비에 맞게 꽉 차게 그림
+
+with tab2:
+    st.subheader(f"🏟️ {selected_season} 시즌 홈팀 득점 랭킹")
+    home_goals = filtered_df.groupby('Home_Team')['Home_Goals'].sum().sort_values(ascending=False)
+    st.bar_chart(home_goals)
+
+
+# ==========================================
+#  AI 승패 예측기 (다시 사이드바 아래쪽으로)
+# ==========================================
+st.sidebar.markdown("---")
+st.sidebar.subheader("🤖 AI 승패 예측기")
+st.sidebar.caption("7년 치 과거 데이터를 기반으로 승률을 계산합니다.")
+
 @st.cache_resource
 def train_model(data):
-    # 0. Result(승무패) 정답지 컬럼 만들기
     if 'Result' not in data.columns:
         data.loc[data['Home_Goals'] > data['Away_Goals'], 'Result'] = 'H'
         data.loc[data['Home_Goals'] == data['Away_Goals'], 'Result'] = 'D'
         data.loc[data['Home_Goals'] < data['Away_Goals'], 'Result'] = 'A'
 
-    # 1. AI가 이해할 수 있게 팀 이름을 숫자(암호)로 바꿉니다.
     le = LabelEncoder()
-    # 모든 팀 이름을 모아서 고유한 숫자를 부여합니다.
     all_teams = pd.concat([data['Home_Team'], data['Away_Team']]).unique()
     le.fit(all_teams)
     
-    # 홈팀과 어웨이팀 이름을 숫자로 변환
     X = pd.DataFrame()
     X['Home_Team_Code'] = le.transform(data['Home_Team'])
     X['Away_Team_Code'] = le.transform(data['Away_Team'])
-    
-    # 정답지(Result) 설정
     y = data['Result']
     
-    # 2. 랜덤 포레스트(Random Forest) AI 모델 학습시키기
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X, y)
     
     return model, le
 
-# 모델 학습 실행 (데이터가 불러와져 있어야 합니다)
-if 'df' in locals():
+# AI는 필터링된 데이터가 아니라 전체 7년 치(df)를 보고 똑똑하게 학습함
+if not df.empty:
     model, le = train_model(df)
-    
-    # 3. 사용자 입력 받기 (웹 화면에 선택 창 띄우기)
-    col1, col2 = st.columns(2)
-    
-    # 팀 목록을 알파벳 순으로 정렬
     team_list = sorted(le.classes_)
     
-    with col1:
-        # 맨유를 홈팀 기본값으로 설정
-        selected_home = st.selectbox("🏠 홈팀 선택", team_list, index=team_list.index('Manchester United') if 'Manchester United' in team_list else 0)
-    with col2:
-        selected_away = st.selectbox("✈️ 어웨이팀 선택", team_list, index=team_list.index('Manchester City') if 'Manchester City' in team_list else 1)
-        
-    # 4. 예측 버튼 만들기
-    if st.button("결과 예측하기 🚀"):
+    selected_home = st.sidebar.selectbox("🏠 홈팀", team_list, index=team_list.index('Manchester United') if 'Manchester United' in team_list else 0)
+    selected_away = st.sidebar.selectbox("✈️ 원정팀", team_list, index=team_list.index('Manchester City') if 'Manchester City' in team_list else 1)
+    
+    if st.sidebar.button("결과 예측하기 🚀"):
         if selected_home == selected_away:
-            st.warning("같은 팀끼리는 경기를 할 수 없습니다! 다른 팀을 선택해 주세요.")
+            st.sidebar.warning("다른 팀을 선택해 주세요.")
         else:
-            # 선택한 팀을 다시 숫자로 변환해서 AI에게 질문할 준비
             input_data = pd.DataFrame({
                 'Home_Team_Code': [le.transform([selected_home])[0]],
                 'Away_Team_Code': [le.transform([selected_away])[0]]
             })
             
-            # AI의 예측 결과 (승점/무/패 확률)
             probabilities = model.predict_proba(input_data)[0]
-            classes = model.classes_ # ['A', 'D', 'H'] (원정승, 무승부, 홈승)
-            
-            # 보기 좋게 결과 매칭
+            classes = model.classes_ 
             prob_dict = dict(zip(classes, probabilities))
             
-            st.success("✨ AI 분석이 완료되었습니다!")
-            
-            # 화면에 큼직하게 예측 확률 보여주기
-            st.metric(label=f"🏠 {selected_home} (홈) 승리 확률", value=f"{prob_dict.get('H', 0) * 100:.1f}%")
-            st.metric(label=f"🤝 무승부 확률", value=f"{prob_dict.get('D', 0) * 100:.1f}%")
-            st.metric(label=f"✈️ {selected_away} (어웨이) 승리 확률", value=f"{prob_dict.get('A', 0) * 100:.1f}%")
+            st.sidebar.success("✨ 분석 완료!")
+            st.sidebar.metric(label=f"🏠 {selected_home} 승리", value=f"{prob_dict.get('H', 0) * 100:.1f}%")
+            st.sidebar.metric(label=f"🤝 무승부", value=f"{prob_dict.get('D', 0) * 100:.1f}%")
+            st.sidebar.metric(label=f"✈️ {selected_away} 승리", value=f"{prob_dict.get('A', 0) * 100:.1f}%")
