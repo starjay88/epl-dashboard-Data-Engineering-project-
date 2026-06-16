@@ -1,0 +1,30 @@
+name: Daily EPL Data Pipeline
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. 내 코드(저장소) 가져오기
+        uses: actions/checkout@v3
+
+      - name: 2. 파이썬 설치하기
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: 3. 영수증(requirements.txt) 보고 필요한 도구 설치하기
+        run: |
+          pip install -r requirements.txt
+          pip install requests
+
+      - name: 4. 파이프라인(main.py) 실행하기! 🚀
+        run: python main.py
+        env:
+          FOOTBALL_API_KEY: ${{ secrets.FOOTBALL_API_KEY }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
