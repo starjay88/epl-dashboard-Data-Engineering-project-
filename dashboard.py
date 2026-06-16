@@ -2,25 +2,26 @@ import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine
 
-# 1. 클라우드 DB 연결 주소 (아까 썼던 비밀번호 포함된 주소를 똑같이 넣습니다)
-CLOUD_DB_URL = "postgresql://postgres.gjyubaddzcmpzjesqakq:ghkddnjswo1!@aws-1-ap-northeast-2.pooler.supabase.com:6543/postgres"
-
-# 2. 클라우드에서 데이터 가져오기 (매번 요청하지 않게 캐시로 저장해두는 똑똑한 기능입니다)
-@st.cache_data
+# 1. 클라우드에서 데이터 가져오기 (1시간마다 캐시를 지우고 최신 데이터로 새로고침!)
+@st.cache_data(ttl=3600)
 def load_data():
+    # [보안 적용] 스트림릿 전용 금고에서 안전하게 DB 주소를 읽어옵니다.
+    CLOUD_DB_URL = st.secrets["SUPABASE_DB_URL"]
+    
     engine = create_engine(CLOUD_DB_URL)
-    # 클라우드 DB의 Matches 테이블에서 데이터 전체 가져오기
-    query = 'SELECT * FROM "Matches"'
+    # main.py에서 저장한 테이블 이름(epl_matches)으로 맞춰서 가져옵니다.
+    query = "SELECT * FROM epl_matches"
     df = pd.read_sql(query, engine)
+    
     return df
 
 # --- 여기서부터 화면 그리기 ---
 
-st.title("⚽ 2023-24 프리미어리그 대시보드")
+st.title("⚽ 2024-25 프리미어리그 대시보드")
 st.write("클라우드 데이터베이스(Supabase)와 실시간으로 연동된 화면입니다.")
 
 # 로딩 스피너 보여주기
-with st.spinner('클라우드 DB에서 데이터를 불러오는 중...'):
+with st.spinner('클라우드 DB에서 최신 데이터를 불러오는 중...'):
     df = load_data()
 
 # 1번 섹션: 전체 데이터 표 보여주기
@@ -41,12 +42,10 @@ st.markdown("---")
 st.header("🤖 AI 매치 승패 예측기")
 st.write("380경기의 과거 데이터를 바탕으로 머신러닝(Random Forest)이 가상 매치의 승률을 예측합니다.")
 
-
 # AI 모델을 학습시키는 함수 (캐시를 사용해 한 번만 학습시킵니다)
 @st.cache_resource
 def train_model(data):
-    # 0. [에러 해결!] Result(승무패) 정답지 컬럼 만들기
-    # 원본 데이터에 Result 컬럼이 없다면, 골 수를 비교해서 우리가 직접 만들어줍니다!
+    # 0. Result(승무패) 정답지 컬럼 만들기
     if 'Result' not in data.columns:
         data.loc[data['Home_Goals'] > data['Away_Goals'], 'Result'] = 'H'
         data.loc[data['Home_Goals'] == data['Away_Goals'], 'Result'] = 'D'
@@ -63,7 +62,7 @@ def train_model(data):
     X['Home_Team_Code'] = le.transform(data['Home_Team'])
     X['Away_Team_Code'] = le.transform(data['Away_Team'])
     
-    # 정답지(Result) 설정 (이제 위에서 만들었기 때문에 에러가 나지 않습니다!)
+    # 정답지(Result) 설정
     y = data['Result']
     
     # 2. 랜덤 포레스트(Random Forest) AI 모델 학습시키기
@@ -83,7 +82,8 @@ if 'df' in locals():
     team_list = sorted(le.classes_)
     
     with col1:
-        selected_home = st.selectbox("🏠 홈팀 선택", team_list, index=team_list.index('Arsenal') if 'Arsenal' in team_list else 0)
+        # 맨유를 홈팀 기본값으로 설정
+        selected_home = st.selectbox("🏠 홈팀 선택", team_list, index=team_list.index('Manchester United') if 'Manchester United' in team_list else 0)
     with col2:
         selected_away = st.selectbox("✈️ 어웨이팀 선택", team_list, index=team_list.index('Manchester City') if 'Manchester City' in team_list else 1)
         
