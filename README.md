@@ -6,7 +6,6 @@ _**Project Overview**_
 
 A personal project to practice end-to-end data engineering and machine learning deployment. This project automates the collection of English Premier League (EPL) match data (2020-2026), stores it in a cloud database, and visualizes it through an interactive web dashboard with an ML-based match predictor.
 
-데이터 수집부터 클라우드 적재, 웹 배포 및 머신러닝 예측까지 데이터 엔지니어링의 전체 파이프라인을 직접 구축해 보기 위한 개인 프로젝트입니다. 프리미어리그(EPL) 7년 치 경기 데이터를 자동으로 수집하고, 이를 바탕으로 시각화 및 승률 예측을 제공하는 대시보드를 개발했습니다.
 
 
 _**Tech Stack**_
