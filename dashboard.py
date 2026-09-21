@@ -5,15 +5,15 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 
 # ==========================================
-# 1. 화면 전체 설정 및 배경화면 (반드시 최상단에 위치)
+# 1. Page Configuration & Background (Must be at the top)
 # ==========================================
 st.set_page_config(page_title="EPL Data Dashboard", layout="wide")
 
 def set_background():
-    # 구장 이미지로 배경 설정 (Unsplash에서 무료로 제공하는 고화질 이미지 사용)
+    # Set stadium image as background (High-res image from Unsplash)
     image_url = "https://images.unsplash.com/photo-1489944440615-453fc2b6a9a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80"
     
-    # rgba(0,0,0) -> rgba(255,255,255)로 변경하여 밝은 톤(0.6 농도)으로 맞춤
+    # Adjust to a bright tone (0.6 opacity) using rgba(255,255,255)
     page_bg_img = f"""
     <style>
     .stApp {{
@@ -29,64 +29,66 @@ def set_background():
 set_background()
 
 # ==========================================
-# 2. 클라우드 DB 연결 및 데이터 로드
+# 2. Cloud DB Connection & Data Loading
 # ==========================================
 @st.cache_data(ttl=3600)
 def load_data():
     CLOUD_DB_URL = st.secrets["SUPABASE_DB_URL"]
     engine = create_engine(CLOUD_DB_URL)
+    # main.py와 동일한 epl_matches 테이블로 완벽하게 통일
     query = "SELECT * FROM epl_matches"
     df = pd.read_sql(query, engine)
     return df
 
-with st.spinner('클라우드 DB에서 7년 치 데이터를 불러오는 중...'):
+with st.spinner('Loading data from Cloud DB...'):
     df = load_data()
 
-# 데이터가 비어있을 경우 에러 방지
+# Prevent errors if data is empty
 if df.empty:
-    st.error("데이터가 없습니다. 깃허브 Actions에서 수집 파이프라인을 먼저 실행해 주세요.")
+    st.error("No data found. Please run the data collection pipeline via GitHub Actions first.")
     st.stop()
 
 # ==========================================
-# 🗄️ 3. 사이드바 (화면 왼쪽 서랍) 설정
+# 🗄️ 3. Sidebar Configuration
 # ==========================================
-st.sidebar.title("⚙️ 설정 및 예측")
-st.sidebar.subheader("📅 시즌 선택")
+st.sidebar.title("⚙️ Settings & Prediction")
+st.sidebar.subheader("📅 Select Season")
 
-# 시즌 목록 가져오기 (최신순)
+# Get season list in descending order
 season_list = sorted(df['Season'].unique(), reverse=True)
-selected_season = st.sidebar.selectbox("데이터를 조회할 시즌을 선택하세요", season_list)
+selected_season = st.sidebar.selectbox("Select a season to view", season_list)
 
-# 사용자가 선택한 시즌의 데이터만 필터링
+# Filter data based on the selected season
 filtered_df = df[df['Season'] == selected_season]
 
 # ==========================================
-# 🖥️ 4. 메인 화면 설정 (데이터 표 & 그래프)
+# 🖥️ 4. Main Display (Data Table & Charts)
 # ==========================================
-st.title(f"⚽ {selected_season} 시즌 프리미어리그 대시보드")
-st.write("클라우드 데이터베이스(Supabase)와 연동된 동적 데이터 파이프라인입니다.")
+st.title(f"⚽ {selected_season} Season Premier League Dashboard")
+st.write("A dynamic data pipeline integrated with a Cloud Database (Supabase).")
 
-# 탭을 활용한 깔끔한 UI
-tab1, tab2 = st.tabs(["🗄️ 원본 데이터 보드", "🔥 팀별 득점력 분석"])
+# Clean UI using Tabs
+tab1, tab2 = st.tabs(["🗄️ Raw Data Board", "🔥 Team Scoring Analysis"])
 
 with tab1:
-    st.subheader(f"{selected_season} 시즌 전체 경기 결과")
+    st.subheader(f"{selected_season} Season Match Results")
     st.dataframe(filtered_df, use_container_width=True)
 
 with tab2:
-    st.subheader(f"🏟️ {selected_season} 시즌 홈팀 득점 랭킹")
+    st.subheader(f"🏟️ {selected_season} Season Home Team Goals Ranking")
     home_goals = filtered_df.groupby('Home_Team')['Home_Goals'].sum().sort_values(ascending=False)
     st.bar_chart(home_goals)
 
 # ==========================================
-# 🤖 5. AI 승패 예측기 (사이드바 하단)
+# 🤖 5. AI Match Predictor (Sidebar Bottom)
 # ==========================================
 st.sidebar.markdown("---")
-st.sidebar.subheader("🤖 AI 승패 예측기")
-st.sidebar.caption("7년 치 과거 전체 데이터를 기반으로 승률을 계산합니다.")
+st.sidebar.subheader("🤖 AI Match Predictor")
+st.sidebar.caption("Calculates win probability based on historical data.")
 
 @st.cache_resource
 def train_model(data):
+    # Generate match result labels if they don't exist
     if 'Result' not in data.columns:
         data.loc[data['Home_Goals'] > data['Away_Goals'], 'Result'] = 'H'
         data.loc[data['Home_Goals'] == data['Away_Goals'], 'Result'] = 'D'
@@ -106,27 +108,27 @@ def train_model(data):
     
     return model, le
 
-# 모델 학습 진행 (7년 치 전체 데이터 활용)
+# Train the model
 model, le = train_model(df)
 
-# ✨ 수정된 부분: 선택한 시즌에 실제로 참가했던 20개 팀만 추출
+# Extract only the teams that participated in the selected season
 current_season_teams = sorted(pd.concat([filtered_df['Home_Team'], filtered_df['Away_Team']]).unique())
 
 selected_home = st.sidebar.selectbox(
-    "🏠 홈팀", 
+    "🏠 Home Team", 
     current_season_teams, 
     index=current_season_teams.index('Manchester United') if 'Manchester United' in current_season_teams else 0
 )
 
 selected_away = st.sidebar.selectbox(
-    "✈️ 원정팀", 
+    "✈️ Away Team", 
     current_season_teams, 
     index=current_season_teams.index('Manchester City') if 'Manchester City' in current_season_teams else 1
 )
 
-if st.sidebar.button("결과 예측하기 🚀"):
+if st.sidebar.button("Predict Result 🚀"):
     if selected_home == selected_away:
-        st.sidebar.warning("같은 팀끼리는 경기를 할 수 없습니다! 다른 팀을 선택해 주세요.")
+        st.sidebar.warning("A team cannot play against itself! Please select different teams.")
     else:
         input_data = pd.DataFrame({
             'Home_Team_Code': [le.transform([selected_home])[0]],
@@ -137,7 +139,7 @@ if st.sidebar.button("결과 예측하기 🚀"):
         classes = model.classes_ 
         prob_dict = dict(zip(classes, probabilities))
         
-        st.sidebar.success("✨ 분석 완료!")
-        st.sidebar.metric(label=f"🏠 {selected_home} 승리", value=f"{prob_dict.get('H', 0) * 100:.1f}%")
-        st.sidebar.metric(label=f"🤝 무승부", value=f"{prob_dict.get('D', 0) * 100:.1f}%")
-        st.sidebar.metric(label=f"✈️ {selected_away} 승리", value=f"{prob_dict.get('A', 0) * 100:.1f}%")
+        st.sidebar.success("✨ Analysis Complete!")
+        st.sidebar.metric(label=f"🏠 {selected_home} Win", value=f"{prob_dict.get('H', 0) * 100:.1f}%")
+        st.sidebar.metric(label=f"🤝 Draw", value=f"{prob_dict.get('D', 0) * 100:.1f}%")
+        st.sidebar.metric(label=f"✈️ {selected_away} Win", value=f"{prob_dict.get('A', 0) * 100:.1f}%")
