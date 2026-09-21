@@ -2,7 +2,16 @@ import os
 import time
 import requests
 import pandas as pd
+import logging
 from sqlalchemy import create_engine
+
+# ==========================================
+# 0. Logging Configuration (실무 스타일 로깅 설정)
+# ==========================================
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 # ==========================================
 # 1. Setup Environment Variables
@@ -17,7 +26,7 @@ headers = {'x-apisports-key': API_KEY}
 season = '2026'
 all_matches = []
 
-print(f"🌐 Starting data collection for the {season} season...")
+logging.info(f"🌐 Starting data collection for the {season} season...")
 
 # ==========================================
 # 2. Extract & Transform
@@ -27,7 +36,7 @@ response = requests.get(url, headers=headers, params=params)
 
 # Defensive logic: Check if the API request was successful
 if response.status_code != 200:
-    print(f"❌ API Request Failed! (Status Code: {response.status_code})")
+    logging.error(f"❌ API Request Failed! (Status Code: {response.status_code})")
     exit()
 
 data = response.json()
@@ -35,7 +44,7 @@ matches = data.get('response', [])
 
 # Check if data exists to prevent overriding the DB with empty data
 if not matches:
-    print("⚠️ No match data retrieved from the API. (Possible Rate Limit or invalid season ID)")
+    logging.warning("⚠️ No match data retrieved from the API. (Possible Rate Limit or invalid season ID)")
     exit()
 
 for match in matches:
@@ -69,17 +78,16 @@ df = pd.DataFrame(all_matches)
 
 # Prevent data loss by stopping the process if the dataframe is empty
 if df.empty:
-    print("⚠️ No processed data available. Stopping DB update to prevent data loss.")
+    logging.warning("⚠️ No processed data available. Stopping DB update to prevent data loss.")
     exit()
 
-print(f"📊 Successfully prepared {len(df)} match records.")
+logging.info(f"📊 Successfully prepared {len(df)} match records.")
 
 # ==========================================
 # 3. Load to Cloud Database (Supabase)
 # ==========================================
-print("☁️ Uploading and replacing data in the Cloud DB...")
+logging.info("☁️ Uploading and replacing data in the Cloud DB...")
 engine = create_engine(CLOUD_DB_URL)
-# 파이프라인이 정상화되었으므로 epl_matches 테이블로 통일합니다.
 df.to_sql('epl_matches', engine, if_exists='replace', index=False)
 
-print("🎉 Success! Pipeline extraction and DB load completed.")
+logging.info("🎉 Success! Pipeline extraction and DB load completed.")
