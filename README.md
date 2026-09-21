@@ -13,7 +13,7 @@ graph LR
     D -->|Random Forest| E((Live ML Predictor))
 
 
-
+Tech Stack
 Data Pipeline: Python (requests, pandas)
 
 Database: Supabase (PostgreSQL)
