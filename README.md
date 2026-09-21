@@ -13,24 +13,22 @@ graph LR
     D -->|Random Forest| E((Live ML Predictor))
 ```
 
-Tech Stack
-Data Pipeline: Python (requests, pandas)
+## 🛠️ Tech Stack
+- **Data Pipeline:** Python (`requests`, `pandas`)
+- **Database:** Supabase (PostgreSQL)
+- **Automation:** GitHub Actions
+- **Frontend & ML:** Streamlit, Scikit-learn (Random Forest Classifier)
 
-Database: Supabase (PostgreSQL)
+## 💡 Key Features & Engineering Decisions
 
-Automation: GitHub Actions
+1. **Automated ETL Pipeline & Failsafe Logic**
+   Built a Python script (`main.py`) to extract match data from the API-Football, transform the data to include win/draw/loss labels, and load it into Supabase. GitHub Actions runs this script daily. Added robust defensive logic to prevent database overrides during API rate-limit exceedances.
 
-Frontend & ML: Streamlit, Scikit-learn (Random Forest Classifier)
+2. **Security Integration**
+   Prevented credential leaks by separating sensitive information (API keys, DB connection strings) from the source code using GitHub Secrets and Streamlit Secrets.
 
-💡 Key Features & Engineering Decisions
-Automated ETL Pipeline & Failsafe Logic
-Built a Python script (main.py) to extract match data from the API-Football, transform the data to include win/draw/loss labels, and load it into Supabase. GitHub Actions runs this script daily. Added robust defensive logic to prevent database overrides during API rate-limit exceedances.
+3. **Handling Promotion/Relegation (Domain Logic)**
+   When building the ML predictor, I noticed that showing all 40 historic teams in a single dropdown caused logical errors (e.g., predicting matches for relegated teams). I solved this by dynamically filtering the UI to only show the 20 teams that actually participated in the user's selected season.
 
-Security Integration
-Prevented credential leaks by separating sensitive information (API keys, DB connection strings) from the source code using GitHub Secrets and Streamlit Secrets.
-
-Handling Promotion/Relegation (Domain Logic)
-When building the ML predictor, I noticed that showing all 40 historic teams in a single dropdown caused logical errors (e.g., predicting matches for relegated teams). I solved this by dynamically filtering the UI to only show the 20 teams that actually participated in the user's selected season.
-
-Cost & Performance Optimization
-Applied Streamlit's @st.cache_data(ttl=3600) to the database querying function. This significantly reduces unnecessary DB calls, improves dashboard loading speed, and prevents potential cloud billing issues.
+4. **Cost & Performance Optimization**
+   Applied Streamlit's `@st.cache_data(ttl=3600)` to the database querying function. This significantly reduces unnecessary DB calls, improves dashboard loading speed, and prevents potential cloud billing issues.
