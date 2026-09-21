@@ -13,14 +13,18 @@ def set_background():
     # Set stadium image as background (High-res image from Unsplash)
     image_url = "https://images.unsplash.com/photo-1489944440615-453fc2b6a9a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80"
     
-    # Adjust to a bright tone (0.6 opacity) using rgba(255,255,255)
     page_bg_img = f"""
     <style>
+    /* 메인 앱 배경 설정 (밝은 톤) */
     .stApp {{
         background-image: linear-gradient(rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.6)), url("{image_url}");
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
+    }}
+    /* 사이드바를 제외한 메인 화면의 모든 텍스트를 검은색 강제 고정 */
+    .block-container, .block-container * {{
+        color: #000000 !important;
     }}
     </style>
     """
@@ -35,7 +39,7 @@ set_background()
 def load_data():
     CLOUD_DB_URL = st.secrets["SUPABASE_DB_URL"]
     engine = create_engine(CLOUD_DB_URL)
-    # main.py와 동일한 epl_matches 테이블로 완벽하게 통일
+    # 파이프라인과 일치하도록 epl_matches 테이블 호출
     query = "SELECT * FROM epl_matches"
     df = pd.read_sql(query, engine)
     return df
