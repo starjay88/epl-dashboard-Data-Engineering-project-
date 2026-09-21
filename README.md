@@ -34,3 +34,6 @@ graph LR
 
 4. **Cost & Performance Optimization**
    Applied Streamlit's `@st.cache_data(ttl=3600)` to the database querying function. This significantly reduces unnecessary DB calls, improves dashboard loading speed, and prevents potential cloud billing issues.
+
+5. **Enterprise-Grade Logging**
+   Replaced standard print statements with Python's native `logging` module to systematically track execution times, INFO/WARNING/ERROR levels, and pipeline health for efficient debugging.
