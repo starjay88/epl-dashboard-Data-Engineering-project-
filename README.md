@@ -8,8 +8,6 @@ A personal project to practice end-to-end data engineering and machine learning 
 ```mermaid
 graph LR
     A[API-Sports] -->|Extract JSON| B(GitHub Actions)
-    B -->|Transform / Clean| B
-    B -->|Load (SQL)| C[(Supabase PostgreSQL)]
-    C -->|Query| D[Streamlit Dashboard]
-    D -->|Random Forest| E((Live ML Prediction))
-
+    B -->|Transform & Clean| C[(Supabase DB)]
+    C -->|Query SQL| D[Streamlit Dashboard]
+    D -->|Random Forest| E((Live ML Predictor))
