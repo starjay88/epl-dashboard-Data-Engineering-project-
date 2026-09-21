@@ -11,7 +11,7 @@ graph LR
     B -->|Transform & Clean| C[(Supabase DB)]
     C -->|Query SQL| D[Streamlit Dashboard]
     D -->|Random Forest| E((Live ML Predictor))
-
+```
 
 Tech Stack
 Data Pipeline: Python (requests, pandas)
