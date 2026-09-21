@@ -12,6 +12,8 @@ graph LR
     C -->|Query SQL| D[Streamlit Dashboard]
     D -->|Random Forest| E((Live ML Predictor))
 
+
+
 Data Pipeline: Python (requests, pandas)
 
 Database: Supabase (PostgreSQL)
